@@ -1,35 +1,48 @@
 metadata:
   version: 1
-  updated_at: '2026-10-15'
-  status: db1_internal_client_acceptance_passed_external_route_waived_source_deleted
-  migration_state: db1_tls_deployed_all_internal_clients_verified_source_deleted
+  updated_at: '2026-10-17'
+  status: db_tic_crm_traccar_node_red_verified_db_cor_fenced
+  migration_state: db_tic_identity_staged_uuid_migration_and_replication_inactive
   live_changes_authorized: true
   description: >
     DNS record changes for the Database, Gestion, and Mantis TIC handoff.
-    The Database DNS cutover is published in both views, and the canonical
-    hostname was renamed from database.intelisis.com.ar to db1.intelisis.com.ar.
-    Traccar, Node-RED, and CRM were switched to the new hostname. A valid
-    production certificate for db1 was deployed to PostgreSQL and reloaded;
-    target-local Certbot owns DNS-01 renewal and the PostgreSQL deployment
-    hook. CRM remains on `sslmode=verify-full`, and its web route and all nine
-    workers now pass internal acceptance. Traccar and Node-RED database
-    acceptance also pass. The operator waived external-vantage testing, so
-    public route reachability remains unverified. Source CT 25025 was deleted
-    after cutover to reclaim storage and is no longer available for rollback.
-    The intended next phase is a new PostgreSQL peer in CLUSTER-CORDOBA.
-    Candidate VM `24025` was created as `db2.intelisis.com.ar` on
+    The production database remains on VM 27025, whose PVE and guest identity
+    is now db-tic.intelisis.com.ar. CRM and Traccar use the new Internal DNS
+    name; Node-RED's live PM_DB_HOST now uses db-tic, and its authenticated
+    read-only campaign-status endpoint returned HTTP 200 after restart. The
+    production certificate covers both db1 and db-tic and the
+    PostgreSQL deployment hook verifies both. CRM remains on
+    sslmode=verify-full; its web route and all nine workers are active, and
+    Traccar is active with TLS-protected database sessions. External db1 DNS
+    and routing were not changed; public route reachability remains waived
+    and unverified. Source CT 25025 was deleted after cutover and is no longer
+    available for rollback.
+    The Córdoba PostgreSQL peer VM `24025` was created as
+    `db2.intelisis.com.ar` on
     `pve-upr-3-cor` with a 32 GiB OS disk and separate 512 GiB data/WAL disk.
-    The October 14 live check found the guest network unreachable. The
-    RouterOS PASSTHROUGH bridge already covered VLANs 25-27; VLAN 25 was
-    missing only from the Córdoba switch PASSTHROUGH bridge VLAN table. After
-    operator approval, it was added tagged on the router-facing and PVE-facing
-    switch trunks. The operator then identified the subnet egress drop as old
-    and requested its removal; this restored Debian mirror access. QEMU Guest
-    Agent, the persistent PostgreSQL data disk, and pgEdge PostgreSQL 17.11
-    with Spock 5.0.13/PostGIS 3.6.4 are now installed and verified. PostgreSQL
-    listens only on localhost; the Spock extension is not created or
-    preloaded, and replication remains inactive. TLS, DNS/client routing, and
-    replication design/approval remain pending.
+    The October 14 live check found the guest network unreachable. RouterOS
+    showed the server subnet 192.168.24.0/24 on VLAN 25, and the VM NIC was
+    aligned to VLAN 25. An earlier inference that switch VLAN membership was
+    the fault is withdrawn: no switch change was authorized or made. The
+    operator later identified the subnet egress drop as old and requested its
+    removal; Debian mirror access was then verified. Fresh
+    October 17 checks through the operator-approved PVE host keys and QEMU
+    Guest Agent confirm PostgreSQL 17.11 with pgEdge Spock 5.0.13 is installed
+    and online. It listens only on localhost, uses `wal_level=logical`, and
+    has no shared preload libraries; the Spock extension is not created and
+    replication remains inactive. The operator selected multiwriter mode for
+    the first activation between future `db-cor` and `db-cen`; this was
+    superseded on October 17 when the operator clarified that only `db-cor`
+    and `db-tic` should exist. VM 26025 (`db-cen`) was shut down and destroyed
+    with purge, and its attached disks were removed. No synchronization is
+    active. The operator subsequently selected future pgEdge/Spock multiwriter
+    between `db-cor` and `db-tic`, after data migration and all safety gates
+    pass; initial replication scope is `aero_crm`, with other application
+    databases deferred for separate qualification. Detailed topology remains
+    open. The PVE/guest names and Internal DNS A records for db-cor and db-tic
+    are now applied. No production data migration, application routing to
+    db-cor, public database DNS change, or synchronization activation has
+    occurred.
     Gestion's approval remains limited to its canonical hostname. Mantis's
     approved canonical CNAME cutover to TIC is live in both views. Its TIC
     HTTPS/SSH redirects are active and no Mantis forwarding remains on Lujan.
@@ -67,10 +80,10 @@ shared_apex_dns:
   zone_serials:
     internal:
       aero.com.ar: 2026101401
-      intelisis.com.ar: 2026101403
+      intelisis.com.ar: 2026101704
     external:
       aero.com.ar: 2026101401
-      intelisis.com.ar: 2026101414
+      intelisis.com.ar: 2026101708
   lujan_apex_nat:
     router: CORE-ROUTER-LUJAN
     internal_and_external_http_https_destination: 192.168.27.20
@@ -143,19 +156,85 @@ services:
     target:
       type: qemu
       vmid: 27025
-      node: pve-01-tic
+      node: pve-03-tic
       os: Debian 13
       postgresql: pgEdge PostgreSQL 17.11
       spock: installed_not_preloaded_extension_absent_replication_inactive
       postgis: 3.6.4
       root_disk: 32G
       data_wal_disk: 512G
-    future_active_active_peer:
-      state: os_and_pgEdge_17_prepared_replication_inactive
+      current_guest_hostname: db-tic.intelisis.com.ar
+      current_workload_address: 192.168.27.25
+    operator_identity_transition:
+      selected_on: '2026-10-17'
+      status: pve_guest_and_internal_dns_applied_crm_traccar_node_red_switched
+      target_database_vm_count: 2
+      tic_vm:
+        vmid: 27025
+        current_name: db-tic.intelisis.com.ar
+        legacy_name: db1.intelisis.com.ar
+        current_workload_address: 192.168.27.25
+        current_external_service_address: 138.121.101.15
+      cordoba_vm:
+        vmid: 24025
+        current_name: db-cor.intelisis.com.ar
+        former_name: db2
+        current_workload_address: 192.168.24.25
+        postgres_listener: localhost_only
+        current_certificate: self_signed_for_db2_intelisis_com_ar
+      previously_planned_centro_vm:
+        vmid: 26025
+        current_name: db-cen
+        target_name: db-cen.intelisis.com.ar
+        current_workload_address: 192.168.26.25
+        status: decommissioned_with_attached_disks_removed_on_2026-10-17
+      known_client_surfaces:
+        - CRM production database URL and maintenance URL
+        - CRM guarded lab rehearsal profile
+        - Traccar database endpoint
+        - Node-RED/PANIC-MANAGER database endpoint
+        - IOT-SERVER deployment and role-bootstrap scripts
+      selected_data_migration_scope: all_application_databases_from_tic_to_cor
+      application_databases:
+        - aero_crm
+        - aero_web
+        - iot_server
+        - traccar
+      local_databases_excluded_from_migration:
+        - postgres
+        - template1
+      client_transition_sequence: crm_traccar_and_node_red_use_db_tic_db_cor_after_all_database_validation
+      crm_uuid_migration_required_before_db_cor_production_cutover: true
+      other_application_database_migrations_required_before_client_cutover: true
+      legacy_db1_dns_alias_disposition: retire_after_all_clients_are_updated_and_verified
+      db_cen_multiwriter_replication_database_scope: superseded_by_two_vm_target
+      db_cor_db_tic_synchronization: pgedge_spock_multiwriter_selected_activation_gated
+      dns_guest_hostnames_certificates_or_client_configs_changed: true
+      internal_a_records:
+        db-tic.intelisis.com.ar: 192.168.27.25
+        db-cor.intelisis.com.ar: 192.168.24.25
+        db1.intelisis.com.ar: 192.168.27.25
+      internal_dns_serial: 2026101704
+      external_dns_serial: 2026101708
+      external_db1_a_unchanged: 138.121.101.15
+      external_db_tic_and_db_cor_a_records: absent
+      crm_and_traccar_clients_switched_to_db_tic: true
+      node_red_runtime_update_authorized_and_verified: true
+      db_cor_application_cutover: false
+      replication_activated: false
+    cordoba_database_vm:
+      state: uuid_rehearsal_fenced_future_multiwriter_selected_activation_gated
+      initial_multiwriter_database_scope: aero_crm
+      current_writer_guardrail: db_tic_remains_sole_production_writer_until_all_gates_pass
+      crm_peer_identity_requirement: same_production_derived_uuid_mapping_on_both_vms
       site: Cordoba
       cluster: CLUSTER-CORDOBA
-      proposed_fqdn: db2.intelisis.com.ar
+      current_guest_hostname: db-cor.intelisis.com.ar
+      proposed_fqdn: db-cor.intelisis.com.ar
       workload_address: 192.168.24.25
+      data_disk: 512_GiB_ext4_mounted_at_var_lib_postgresql_419_GiB_free
+      tls_identity_ready: false
+      current_tls_certificate: self_signed_for_db2_intelisis_com_ar
       vmid: 24025
       node: pve-upr-3-cor
       resources: 4_vcpu_8gib_ram_32g_os_512g_data
@@ -177,15 +256,10 @@ services:
         router_vlan_interface: servers-pas_id_25_running
         router_bridge: PASSTHROUGH_vlan_filtering_enabled
         router_bridge_vlan_table: vlan_25_in_existing_25-27_range_tagged_on_TRUNK-CLUSTER_and_TRUNK-CRS
-        switch_bridge: PASSTHROUGH_vlan_filtering_enabled
-        switch_bridge_vlan_table: vlan_25_added_tagged_on_TRUNK-CCR_and_TRUNK-CLUSTER
-        switch_router_uplink: TRUNK-CCR_running
-        switch_pve_uplink: TRUNK-CLUSTER_running
-        switch_vlan_25_current_tagged: [TRUNK-CCR, TRUNK-CLUSTER]
-        vm_mac_learned_on_router_and_switch_vlan_25: true
-        diagnosis: switch_bridge_vlan_25_membership_was_missing
-        router_vlan_change: none_needed_or_made
-        switch_vlan_change: applied_after_operator_approval
+        router_vlan_25_change: reported_on_CORE_ROUTER_CORDOBA_details_not_reconstructed
+        switch_change_authorized_or_applied: false
+        switch_vlan_25_membership: not_verified_as_a_required_change
+        diagnosis: do_not_attribute_guest_connectivity_failure_to_switch
       operator_requested_firewall_cleanup:
         router: CORE-ROUTER-CORDOBA
         removed_rule_id: '*14'
@@ -236,12 +310,131 @@ services:
         max_sync_workers_per_subscription: 4
         replication_connections: 0
         wal_receiver_processes: 0
+        live_refresh_2026_10_17:
+          observed_on: '2026-10-17'
+          observation_stage: before_same_day_identity_and_certificate_transition
+          checked_through: trusted_pve_ssh_and_qemu_guest_agent
+          production_db1:
+            vmid: 27025
+            node: pve-03-tic
+            postgres_cluster: '17/main_online'
+            server_version: 17.11_Debian_17.11-1.trixie
+            database: aero_crm
+            database_size: 12_GB
+            public_id_column_types:
+              bigint: 48
+              integer: 76
+              text: 12
+            listen_addresses: '*'
+            port: 5432
+            wal_level: logical
+            shared_preload_libraries: ''
+            track_commit_timestamp: true
+            max_worker_processes: 16
+            max_logical_replication_workers: 8
+            max_wal_senders: 16
+            max_replication_slots: 16
+            max_sync_workers_per_subscription: 4
+            ssl: true
+            ssl_min_protocol_version: TLSv1.2
+            tls_certificate:
+              source_file: /etc/postgresql/tls/current/fullchain.pem
+              subject: CN=db1.intelisis.com.ar
+              issuer: "C=US, O=Let's Encrypt, CN=YE1"
+              subject_alt_names: [db1.intelisis.com.ar]
+              not_after: '2027-01-12T00:51:39Z'
+              sha256_fingerprint: D16A7E03A10C9D11970603AFA76B0D7602B3ED8781D1006E4C54887C23B4913C
+            spock_extension_installed: false
+            postgis_extension: 3.6.4
+            publications: 0
+            subscriptions: 0
+            logical_replication_slots: 0
+            replication_senders: 0
+          peer_db2:
+            vmid: 24025
+            node: pve-upr-3-cor
+            postgres_cluster: '17/main_online'
+            server_version: 17.11_Debian_17.11-1.trixie
+            databases:
+              aero_crm_uuid_contract:
+                size: 29_GB
+                public_id_column_types:
+                  uuid: 123
+                  integer: 1
+                  text: 12
+              aero_crm_uuid_rehearsal:
+                size: 29_GB
+            listen_addresses: localhost
+            port: 5432
+            wal_level: logical
+            shared_preload_libraries: ''
+            track_commit_timestamp: true
+            max_worker_processes: 16
+            max_logical_replication_workers: 8
+            max_wal_senders: 16
+            max_replication_slots: 16
+            max_sync_workers_per_subscription: 4
+            ssl: true
+            ssl_min_protocol_version: TLSv1.2
+            tls_certificate:
+              source_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
+              subject: CN=db2.intelisis.com.ar
+              issuer: CN=db2.intelisis.com.ar
+              subject_alt_names: [db2.intelisis.com.ar]
+              not_after: '2036-10-11T17:27:12Z'
+              sha256_fingerprint: D1834EA764CBCF892FA219CE28A7EAF98F73C5DF81DD26519AE5401DE5288BAD
+            spock_extension_installed: false
+            postgis_extension: 3.6.4
+            publications: 0
+            subscriptions: 0
+            logical_replication_slots: 0
+            replication_senders: 0
+            production_uuid_mapping_present: false
+          decommissioned_db_cen:
+            vmid: 26025
+            node: pve-upr-3-cen
+            postgres_cluster: '17/main_online'
+            server_version: 17.11_Debian_17.11-1.trixie
+            pgedge_postgresql_package: 17.11-1.trixie
+            pgedge_spock_package: 5.0.13-1.trixie
+            listen_addresses: localhost
+            port: 5432
+            wal_level: replica
+            shared_preload_libraries: ''
+            track_commit_timestamp: false
+            max_worker_processes: 8
+            max_logical_replication_workers: 4
+            max_wal_senders: 10
+            max_replication_slots: 10
+            max_sync_workers_per_subscription: 2
+            ssl: true
+            ssl_min_protocol_version: TLSv1.2
+            tls_certificate:
+              source_file: /etc/ssl/certs/ssl-cert-snakeoil.pem
+              subject: CN=db-cen
+              issuer: CN=db-cen
+              subject_alt_names: [db-cen]
+              not_after: '2036-10-14T16:39:02Z'
+              sha256_fingerprint: 884812575DF9E281424E0CFD465EEE93EF4BA911181DB0B3103056793FCD29F4
+            spock_extension_available: 5.0.13
+            spock_extension_installed: false
+            publications: 0
+            subscriptions: 0
+            logical_replication_slots: 0
+            replication_senders: 0
+            application_database_seeded: false
+          observation_scope: metadata_only_no_row_parity_or_application_compatibility_claim
+          production_dns_routing_or_replication_changes_made: false
+          db_cen_pgedge_packages_installed: true
+          db_cen_spock_preload_or_replication_settings_changed: false
+          replication_tls_client_connectivity_tested: false
       shared_suffix_pair_authorization: approved_by_operator
       replication_intent:
-        topology: true_multiwriter
-        client_destination_selection: future_external_load_balancer
-        load_balancer_selection_criteria: not_yet_implemented
-        database_and_replication_scope: aero_crm_only
+        status: two_vm_multiwriter_selected_activation_gated
+        topology: pgedge_spock_true_multiwriter_between_db_cor_and_db_tic
+        client_destination_selection: not_selected_for_two_vm_target
+        load_balancer_selection_criteria: pending_routing_design
+        database_and_replication_scope: aero_crm_initially_other_app_databases_deferred_for_qualification
         postgres_database: excluded_default_maintenance_database_no_user_objects
         uuid_rehearsal_on_db2:
           status: completed_on_isolated_clone_replication_still_inactive
@@ -512,9 +705,17 @@ services:
             workflow_table_writer_matrix: pending
           approval_checklist:
             - id: topology_and_peer_lifecycle
-              status: direction_approved_details_pending
+              status: two_vm_multiwriter_mode_selected_details_and_activation_gated
               approved_at: '2026-10-15'
               approved_direction: scalable_pgEdge_Spock_logical_multiwriter_db1_to_dbn_incremental_peer_addition
+              superseded_at: '2026-10-17'
+              current_vm_target: db_cor_and_db_tic_only
+              current_synchronization_mode_selected_at: '2026-10-17'
+              current_synchronization_intent: pgedge_spock_multiwriter_after_data_migration_and_all_gates
+              initial_database_scope: aero_crm
+              other_application_database_scope: deferred_pending_separate_qualification
+              current_synchronization_topology_details: pending
+              replication_activation: not_authorized
               writer_guardrail: db1_remains_sole_writer_until_separate_gates_pass
               evidence_required: topology_version_matrix_and_repeatable_add_remove_reseed_procedure
             - id: writer_ownership
@@ -729,53 +930,65 @@ services:
     publication:
       state: internal_external_published_and_verified
       primary_serials:
-        internal: 2026101402
-        external: 2026101402
+        internal: 2026101704
+        external: 2026101708
       secondary_serials:
-        internal: 2026101402
-        external: 2026101402
+        internal: 2026101704
+        external: 2026101708
       external_frozen: false
       public_recursive_answer: 138.121.101.15
       ttl: 300
+      additional_internal_database_a_records:
+        db-tic.intelisis.com.ar: 192.168.27.25
+        db-cor.intelisis.com.ar: 192.168.24.25
+      legacy_db1_internal_a_retained: 192.168.27.25
+      external_db_tic_and_db_cor_a_records: absent
     client_cutover:
       crm:
-        state: active_after_db1_tls_deployment
+        state: active_on_db_tic_after_identity_transition
+        database_hostname: db-tic.intelisis.com.ar
         temporary_hosts_pin: removed_and_compared_with_original_backup
         application_acceptance: internal_login_http_200_tls_verified
         workers: all_nine_active
-        worker_database_sessions: nine_tls_verified
+        database_sessions: ten_tls_verified
         tls_mode: verify-full
       traccar:
-        state: running_and_database_connected
+        state: active_on_db_tic
         guest_address: 192.168.25.8
+        database_hostname: db-tic.intelisis.com.ar
         database_target: 192.168.27.25
-        application_acceptance: database_schema_current_and_ten_jdbc_sessions_verified
+        application_acceptance: service_active_and_ten_tls_jdbc_sessions_verified
       node_red:
-        state: running_and_database_connected
+        state: live_runtime_updated_to_db_tic_and_authenticated_endpoint_verified_after_restart
         guest_address: 192.168.25.7
+        database_hostname: db-tic.intelisis.com.ar
         database_name: iot_server
-        application_acceptance: post_restart_authenticated_read_only_campaign_status_http_200
+        authorized_ssh_access: project_ssh_credential_used
+        application_acceptance_after_runtime_update: authenticated_read_only_campaign_status_http_200
+        admin_bearer_token: rotated_and_authenticated_endpoint_reverified
+        runtime_secret_file_modes: local_and_live_0600
     source:
       state: deleted_after_cutover_by_operator
       ct: 25025
       rollback_available: false
     external_route_acceptance: waived_by_operator_not_verified
     certificate:
-      state: deployed_and_served
+      state: deployed_and_served_for_db1_and_db_tic
       subject: db1.intelisis.com.ar
-      expires: '2027-01-12'
-      sha256_fingerprint: D16A7E03A10C9D11970603AFA76B0D7602B3ED8781D1006E4C54887C23B4913C
+      subject_alt_names: [db1.intelisis.com.ar, db-tic.intelisis.com.ar]
+      expires: '2027-01-15'
+      sha256_fingerprint: AEB5E4F5ED9DE034A39A642F2FA31E39626BA7CCDD2CCFB3132D8568B5BB0C99
       postgresql_reload: passed_without_restart
-      local_chain_and_hostname_verification: passed
+      local_chain_and_hostname_verification: passed_for_both_hostnames
       renewal:
         manager: certbot_on_target_vm_27025
         timer: enabled_and_active
         dns01: restricted_rfc2136_credentials
         deploy_hook: /etc/letsencrypt/renewal-hooks/deploy/50-postgresql-tls
-        deploy_hook_validation: chain_hostname_expiry_keypair_and_served_fingerprint
+        deploy_hook_validation: chain_both_hostnames_expiry_keypair_and_served_fingerprint
       previous_database_hostname_certificate_removed_from_target: true
       source_rollback_certificate_retained: false
-    state: db1_tls_deployed_all_internal_clients_verified_source_deleted_external_route_waived
+    state: db_tic_tls_served_crm_traccar_node_red_verified_db1_alias_retained_source_deleted_external_route_waived
 
   mantis:
     canonical_fqdn: mantis.intelisis.com.ar

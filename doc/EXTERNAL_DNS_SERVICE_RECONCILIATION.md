@@ -1,20 +1,27 @@
 # External DNS service reconciliation
 
-Updated: October 16, 2026
+Updated: October 17, 2026
 
-## Operator-directed status (October 16, 2026)
+Firewall terminology: references in this document to an “external firewall”
+mean the `/ip firewall filter` section on the applicable CORE RouterOS router.
+There is no separate external firewall appliance.
 
-- GPS remains on `gps.aero.com.ar` / `138.121.100.2`. The dedicated
-  environment SSH key authenticated through the new
-  `138.121.100.2:20083` -> `192.168.25.8:22` CORE mapping. Existing public GPS
-  client ports and the dedicated address were preserved; the unused public
-  TCP `8080` forward was removed on October 16 after operator authorization.
-  October 16
-  external checks returned HTTP 301 on port `80`, HTTP 200 with TLS 1.3 on
-  `443`, and HTTP 200 on `8082`; all five TCP telemetry listeners accepted
-  connections. The operator confirms GPS protocol-level ingestion has already
-  been validated, so application acceptance is recorded by operator
-  confirmation. No synthetic telemetry was sent.
+## Operator-directed status (October 17, 2026)
+
+- GPS now uses `gps.intelisis.com.ar` as its canonical DNS and guest hostname.
+  Both Internal authorities resolve it to `192.168.25.8`; External DNS resolves
+  it to `138.121.100.2`. The legacy `gps.aero.com.ar` name remains published
+  to the same endpoints. Both Intelisis zone views use serial `2026101701` on
+  both authorities, and public resolvers return the External address. The
+  dedicated environment SSH key path, `138.121.100.2:20083` ->
+  `192.168.25.8:22`, the dedicated public address, and all existing client
+  ports remain unchanged. The existing certificate lineage now covers both
+  names; public HTTPS returned `200` with successful TLS verification for each,
+  and HTTP redirects use the new canonical name. After an approved Mosquitto
+  restart, the internal listener `192.168.25.8:8883` passed strict certificate
+  chain and hostname validation for both names; port `8883` is not exposed by
+  the existing public NAT rules. The October 16 operator confirmation of GPS
+  protocol-level ingestion remains valid; no synthetic telemetry was sent.
 - Ollama at `192.168.27.10` is internal-only:
   `ollama.intelisis.com.ar` resolves in the Internal view only. Public
   resolution remains NXDOMAIN; no Ollama public address assignment, route, or
@@ -34,6 +41,18 @@ Updated: October 16, 2026
   locally stored credentials reached `/my_view_page.php` with TLS verification
   enabled. No issue or customer records were read or changed. The operator
   confirms all ingress access control is enforced by the external firewall.
+- On October 16, the operator directed retirement of
+  `projects.intelisis.com.ar` from all managed DNS views. The Internal and
+  External A records and External PTR were removed. Both DNS authorities now
+  serve the updated zones; the Projects guest remains deprecated and powered
+  off. Its router assignment and broad destination NAT were not changed by
+  this DNS-scoped action.
+- S3 DNS analysis and any DNS cutover are deferred until the ongoing load
+  balancer deployment is complete. That deployment is outside DNS_ENVIRONMENT
+  scope; the current S3 DNS state remains unchanged pending a later review.
+- Pro3D remains owner-managed and is outside DNS_ENVIRONMENT scope. Its BIND
+  retirement is complete; no delegation, service, or further DNS changes are
+  pending from this project.
 - The deprecated `groupware.aero.com.ar` A record was removed from the Internal
   `aero.com.ar` zone on October 16. Both Internal authorities now return
   authoritative NXDOMAIN at SOA `2026101601`. Public resolvers already returned
@@ -41,6 +60,24 @@ Updated: October 16, 2026
   the External SOA remains `2026101402`. The `mail.aero.com.ar` record still
   resolves to the approved Mailcow service in both views, and the guest at
   `192.168.25.40` was not changed.
+
+### Projects DNS retirement verification (October 16, 2026)
+
+The operator approved removing `projects.intelisis.com.ar` from every
+DNS_ENVIRONMENT view. The primary CT `25100` removed Internal A
+`192.168.26.10`, External A `138.121.102.6`, and the External PTR for
+`138.121.102.6`. The deprecated guest remains powered off; RouterOS address,
+route, and destination-NAT state were not changed.
+
+The affected zones were backed up in the root-only directory
+`/root/dns-projects-record-retirement-20261016/` on CT `25100`. Zone
+validation passed. The Internal `intelisis.com.ar` SOA is `2026101602` on both
+authorities; the External SOA is `2026101601` on both authorities; and
+`102.121.138.in-addr.arpa` is at `1513198929` on both authorities. Both
+Internal authorities return authoritative NXDOMAIN for the hostname. Public
+recursive checks now return NXDOMAIN for both A and PTR queries. Google Public
+DNS briefly retained a cached PTR answer after publication, but subsequent
+checks against both Google and Cloudflare confirmed that cache has expired.
 
 ## Scope and evidence
 
@@ -359,12 +396,12 @@ overlapping `10000-10500`: 53 enabled and 42 disabled. Enabled mappings cover
 These gaps and disabled customer mappings remain untouched pending owner/client
 review.
 
-## Disposition summary (October 12 router audit; DNS status updated October 15)
+## Disposition summary (October 12 router audit; DNS status updated October 16)
 
 | Public address | Primary DNS identity or role | Live router finding | Disposition |
 | --- | --- | --- | --- |
 | `138.121.100.1` | Primary authoritative DNS | TCP/UDP 53 to `192.168.25.100` | Dedicated exception |
-| `138.121.100.2` | `gps.aero.com.ar` | Eight GPS client-port NAT mappings plus SSH `20083` -> `.25.8:22`; dedicated-key SSH login passed; unused TCP `8080` forward removed October 16 | Retain dedicated public IP and required client ports; protocol-level ingestion accepted by operator confirmation |
+| `138.121.100.2` | `gps.intelisis.com.ar` (compatibility alias: `gps.aero.com.ar`) | Eight GPS client-port NAT mappings plus SSH `20083` -> `.25.8:22`; dedicated-key SSH login passed; unused TCP `8080` forward removed October 16 | Retain dedicated public IP and required client ports; protocol-level ingestion accepted by operator confirmation |
 | `138.121.100.3` | PBX is Internal-only; no External A | Centro PBX VM `26006` is running at `.26.6`; no public assignment, route, or NAT on audited CORE routers | Preserve Internal-only; do not add External DNS or NAT |
 | `138.121.100.4` | `aero.com.ar`, `intelisis.com.ar` | TCP 80/443 to TIC Gestion `192.168.27.20`; customer ranges `10000-10474` | Preserve; candidate shared standard-port web proxy after validation; customer mappings pending owner review |
 | `138.121.100.5` | Multi-tenant production Mailcow | Mail and HTTPS ports to `192.168.25.40` | Preserve existing service/IP; canonical mail host is `mail.intelisis.com.ar` |
@@ -380,7 +417,7 @@ review.
 | `138.121.101.8` | `development.intelisis.com.ar` | Only TCP 20022 to SSH on `192.168.27.15` | Private-use administration confirmed; preserve the current path until a verified TIC site-router high-port replacement is accepted. Retire `.101.8` only after separate approval. |
 | `138.121.101.242` | `polodesalud.com.ar` apex | Routed through Lujan PPPoE-in `backbone-16` via `.102.194`; no local assignment or NAT | External customer-owned IP; preserve address, DNS, and route |
 | `138.121.102.1` | Secondary authoritative DNS | TCP/UDP 53 to `192.168.26.100` | Dedicated exception |
-| `138.121.102.6` | `projects.intelisis.com.ar` | All protocols and ports to `192.168.26.10`; guest is powered off | Do not activate or migrate; separately approve disposition of the existing publication |
+| `138.121.102.6` | No External A or PTR; former Projects endpoint | Broad destination NAT to deprecated, powered-off guest `192.168.26.10` remains unchanged | Projects DNS retired from all managed views October 16; do not republish or treat the address as available |
 | `138.121.101.15` | `tic.intelisis.com.ar` | Public loopback assignment verified; NAT service inventory is out of scope | Dedicated router identity |
 | `138.121.102.15` | `centro.intelisis.com.ar` | Public loopback assignment verified; NAT service inventory is out of scope | Dedicated router identity |
 | `45.238.8.15` | `cordoba.intelisis.com.ar` | Public loopback assignment verified; NAT service inventory is out of scope | Dedicated router identity |

@@ -1,6 +1,7 @@
 metadata:
   version: 1
-  observed_at: '2026-10-16'
+  observed_at: '2026-10-17'
+  dns_verified_at: '2026-10-17'
   dns_primary: ns1.intelisis.com.ar
   dns_container: 25100
   description: Reconciliation of External DNS public identities with live CORE-router state.
@@ -15,20 +16,20 @@ metadata:
     unresolved: Audience, ownership, activity, or endpoint is not sufficiently verified; do not migrate or activate.
     retired: Retired address or service; do not republish without approval.
   counts:
-    forward_a_records: 24
-    unique_forward_addresses: 14
+    forward_a_records: 23
+    unique_forward_addresses: 12
     cname_records: 19
     mx_records: 3
-    ptr_records: 7
+    ptr_records: 6
     reconciled_public_addresses: 20
 
 zone_serials:
   aero.com.ar: 2026101402
-  intelisis.com.ar: 2026101522
-  polodesalud.com.ar: 2026101104
+  intelisis.com.ar: 2026101708
+  polodesalud.com.ar: 2026101501
   100.121.138.in-addr.arpa: 1503626322
   101.121.138.in-addr.arpa: 2026101501
-  102.121.138.in-addr.arpa: 1513198928
+  102.121.138.in-addr.arpa: 1513198929
   103.121.138.in-addr.arpa: 1513198889
 
 services:
@@ -51,6 +52,7 @@ services:
 
   - public_address: 138.121.100.2
     dns_a_names:
+      - gps.intelisis.com.ar
       - gps.aero.com.ar
     ptr_name: null
     observed_site: lujan
@@ -134,7 +136,7 @@ services:
       - Public TCP 80 maps to Node-RED guest port 1880. The effective orchestrator.firmware_base_url is http://iot.intelisis.com.ar/endpoint/firmware, and a capped public firmware GET returned HTTP 200. Node-RED v22.1.0 runs with ssl=false and HTTP-node Basic Auth disabled; endpoint-specific authentication remains enabled.
       - PM_ADMIN_TOKEN, PM_DEVICE_SECRET, and PM_TRACCAR_INGEST_TOKEN are present in the protected runtime secrets file; unauthenticated device-command, admin, and heartbeat probes returned HTTP 401. The heartbeat helper's missing-token bypass is fixed and deployed.
       - Public HTTPS 443 and MQTT TLS 8883 present the renewed production certificate issued October 15, 2026, expiring January 13, 2027. The local Home Assistant app local_iot_certbot_dns is started in production mode with boot mode auto. On October 16, the operator approved a forced production renewal. The app completed DNS-01/RFC2136 issuance, deployed the certificate to /ssl, and successfully requested Home Assistant and Mosquitto restarts. The deployed and served HTTPS/MQTT certificate fingerprints match, hostname and chain checks pass, and HTTPS returns HTTP 200. The External intelisis.com.ar SOA serial is 2026101522 on primary and secondary; public resolvers show no leftover challenge TXT. Keep core_letsencrypt stopped on HTTP-01.
-      - On October 16, 2026, the dedicated IoT-admin public key authenticated through both the former .100.6:8922 path and the new .100.6:20073 high-port path. The external firewall owner confirmed the TCP 20073 source policy; the new NAT rule is active and uses the existing iot.intelisis.com.ar hostname, with no DNS change. After high-port acceptance, the public 8922 forward was removed while MQTT TCP 8883 remained enabled. RouterOS source filtering is not planned.
+      - On October 16, 2026, the dedicated IoT-admin public key authenticated through both the former .100.6:8922 path and the new .100.6:20073 high-port path. The operator confirmed the TCP 20073 source policy in the CORE RouterOS /ip firewall filter; the new NAT rule is active and uses the existing iot.intelisis.com.ar hostname, with no DNS change. After high-port acceptance, the public 8922 forward was removed while MQTT TCP 8883 remained enabled.
       - Runtime secrets are owner-only; configured Node-RED static-auth password was rotated without changing other add-on options.
 
   - public_address: 138.121.100.7
@@ -247,29 +249,30 @@ services:
       - Do not republish PMS or treat 138.121.101.7 as available without separate address-allocation review.
 
   - public_address: 138.121.101.8
-    dns_a_names:
-      - development.intelisis.com.ar
+    dns_a_names: []
     ptr_name: null
     observed_site: tic
-    router_assignment: CORE-ROUTER-TIC loopback
-    nat_summary: TCP port 20022 to 192.168.27.15 port 22
-    role: development_environment
-    access_class: restricted_admin
-    high_port_migration_eligible: true
-    disposition: owner_decision_required
-    migration_eligible: conditional
+    router_assignment: No address assignment observed on CORE-ROUTER-TIC at the October 17 cutover; provider allocation remains unverified
+    nat_summary: No active Development NAT path was present on this address at cutover; the legacy TCP 20022 path is not retained
+    role: retired_development_endpoint
+    access_class: retired
+    high_port_migration_eligible: false
+    disposition: retired
+    migration_eligible: false
     blockers:
-      - Development is private-use; its current public-network path is SSH administration only, TCP 20022 to 192.168.27.15:22. Do not infer a public web service from the DNS name.
-      - Keep the existing endpoint until the replacement target/listener and external-firewall policy are verified and the owner accepts the cutover.
-      - The disabled TCP 20153 proposal targets the current VM; the disabled TCP 20653 proposal targets VM 27065 at 192.168.27.65, which is not present in the latest guest inventory. Do not enable either mapping or change DNS until the exact target and client cutover are verified.
+      - The approved Development cutover moved its External A record to 138.121.101.15 and uses TIC TCP 20153; no TCP 20022 path was present on TIC at cutover.
+      - An October 17 public resolver check initially returned this retired A value from Google with TTL 14704, while Cloudflare returned 138.121.101.15. A follow-up at 18:41 UTC returned 138.121.101.15 through Cloudflare, Google, and Quad9; the stale-answer discrepancy is resolved for these samples, but provider allocation must still be confirmed before reuse.
+      - Do not reassign 138.121.101.8 without separate provider-allocation review.
 
   - public_address: 138.121.101.15
     dns_a_names:
       - tic.intelisis.com.ar
+      - development.intelisis.com.ar
+      - db1.intelisis.com.ar
     ptr_name: null
     observed_site: tic
     router_assignment: CORE-ROUTER-TIC loopback
-    nat_summary: Public router identity; destination-NAT services are managed separately
+    nat_summary: Public router identity; Development TCP 20153 forwards to 192.168.27.15:22, with the internal router identity 10.8.0.61:20153; other destination-NAT services are managed separately
     role: edge_router_public_identity
     access_class: mixed_service_identity
     high_port_migration_eligible: false
@@ -326,20 +329,19 @@ services:
       - Preserve the edge-router identity; application NAT and service exposure are outside this DNS reconciliation.
 
   - public_address: 138.121.102.6
-    dns_a_names:
-      - projects.intelisis.com.ar
-    ptr_name: projects.intelisis.com.ar
+    dns_a_names: []
+    ptr_name: null
     observed_site: centro
     router_assignment: Routed through CORE-ROUTER-CENTRO without a dedicated IP address object
-    nat_summary: Unrestricted protocol and port destination NAT to 192.168.26.10
-    role: projects_application
-    access_class: unresolved
+    nat_summary: Unrestricted protocol and port destination NAT to the deprecated powered-off guest at 192.168.26.10; not changed by this DNS retirement
+    role: deprecated_projects_vm_dns_retired
+    access_class: retired
     high_port_migration_eligible: false
-    disposition: migration_candidate
-    migration_eligible: conditional
+    disposition: retired
+    migration_eligible: false
     blockers:
-      - Inventory every listening service before replacing the broad destination NAT.
-      - Migrate only explicitly approved application ports.
+      - The operator directed removal of the Projects hostname from all managed DNS views on October 16; authoritative A/PTR removal and replication are verified.
+      - The guest remains deprecated and powered off. Router assignment and broad destination NAT were not changed as part of this DNS-scoped action.
 
   - public_address: 45.238.8.15
     dns_a_names:
@@ -402,12 +404,12 @@ additional_findings:
   - October 14 CORE/PVE audit and approved cleanup: PMS A records were removed from both polodesalud.com.ar views and its External PTR was removed; PBX External A was removed while its Internal A remains 192.168.26.6. Both changes were validated and replicated to the secondary DNS authority.
   - October 14 router cleanup: 138.121.101.4/32 was removed from the Lujan loopback; its dynamic host route disappeared locally and from TIC, Centro, and Cordoba. No NAT for this address or the deleted Database guest remains on the four CORE routers.
   - October 14 operator disposition: the polodesalud.com.ar A record at 138.121.101.242, www CNAME, and active route through Lujan PPPoE-in session backbone-16 via 192.168.102.194 are correct and are to remain unchanged.
-  - The retired mailcow-pilot.intelisis.com.ar name and 138.121.100.8 PTR both return authoritative NXDOMAIN on primary and secondary; the pilot PTR cleanup is verified.
+  - The External mailcow-pilot.intelisis.com.ar A record and the 138.121.100.8 PTR are absent. However, the current Internal-view AXFR contains mailcow-pilot.intelisis.com.ar A 192.168.25.40, pilot.intelisis.com.ar MX to that host, and autoconfig.pilot/autodiscover.pilot CNAMEs to it. The Internal view still publishes legacy pilot-mail identities to the production Mailcow address; retain them pending dependency and owner review rather than treating the pilot hostname as retired in both views.
   - polodesalud.com.ar remains A 138.121.101.242 in both views and www.polodesalud.com.ar remains a CNAME to the apex. Its MX points to mail.intelisis.com.ar. The operator confirmed the existing route through Lujan PPPoE-in backbone-16 is correct; no further Polo change is required.
   - pms.polodesalud.com.ar returns NXDOMAIN in both views and has no External PTR following the approved retirement. pbx.aero.com.ar remains A 192.168.26.6 in Internal and is absent from External; no PBX destination NAT exists on the four audited CORE routers.
   - mantis.intelisis.com.ar is a CNAME to tic.intelisis.com.ar in both DNS views; its External target resolves to 138.121.101.15 and its Internal target resolves to 10.8.0.61. TIC forwards ports 20502/20503 to CT 27050; no Mantis forwarding was found on Lujan.
   - Mantis is a private-use application that intentionally remains reachable through the public network at TIC ports 20502/20503; the private audience is distinct from the public access path.
-  - October 16 public Mantis checks from this workstation connected to TCP 20502 and 20503. HTTPS certificate validation passed and HEAD / redirected to /login_page.php; SSH returned an OpenSSH banner. A subsequent authenticated web login using the locally stored Mantis credentials reached /my_view_page.php with TLS verification enabled. No issue or customer records were read or changed. The operator confirms all ingress access control is enforced by the external firewall.
+  - October 16 public Mantis checks from this workstation connected to TCP 20502 and 20503. HTTPS certificate validation passed and HEAD / redirected to /login_page.php; SSH returned an OpenSSH banner. A subsequent authenticated web login using the locally stored Mantis credentials reached /my_view_page.php with TLS verification enabled. No issue or customer records were read or changed. The operator confirms ingress access control is enforced by CORE RouterOS /ip firewall filter rules; no separate external firewall appliance exists.
   - web.intelisis.com.ar and lujan.intelisis.com.ar are active shared workload endpoints on 138.121.100.15.
   - gestion.intelisis.com.ar is a CNAME to tic.intelisis.com.ar in both views; the TIC router A records are 10.8.0.61 Internal and 138.121.101.15 External. gestion.aero.com.ar is absent from both views.
   - db1.intelisis.com.ar is published through TIC at 138.121.101.15; legacy database.intelisis.com.ar and its former 138.121.101.4 PTR are retired. Source CT 25025 is deleted, no old :5432 NAT remains, and 138.121.101.4/32 has been removed from Lujan and withdrawn from all four CORE routers.
@@ -419,17 +421,24 @@ additional_findings:
   - DNS absence is not evidence that an address is unallocated.
   - October 16 verification: Ollama at 192.168.27.10 is published as an A record only in the Internal intelisis.com.ar view; public DNS returns NXDOMAIN, and no Ollama address assignment, route, or NAT is configured.
   - Operator direction October 16: Prestoprenda remains customer-DNS-owned; its external service path has been accepted as verified by the operator. Keep it absent from Internal DNS and do not reopen the cutover.
-  - Operator direction October 15: Cordoba S3 GUI publication is active at s3-cor.intelisis.com.ar, a CNAME to cordoba.intelisis.com.ar in both DNS views, with unrestricted public TCP ports 20284-20286 protected by TLS and separate Basic Auth credentials. The Cordoba S3 API and native SeaweedFS backends remain private; the four TIC S3 mappings remain planned and disabled. IoT now uses 138.121.100.6. Netmgr's External CNAME to lujan.intelisis.com.ar is already documented as published. LTS and groupware identities are deprecated. On October 16, the groupware.aero.com.ar Internal A record was removed; both Internal authorities now return authoritative NXDOMAIN at SOA 2026101601. Public resolvers already returned NXDOMAIN before the edit, so no External zone change was needed; External SOA remains 2026101402. Production Mailcow at 192.168.25.40 was not changed; mail.aero.com.ar continues resolving to its approved mail endpoint in both views. DNS retirement does not authorize deleting LXC 25004.
+  - Operator direction October 15 (historical): Cordoba S3 GUI publication is active at s3-cor.intelisis.com.ar, a CNAME to cordoba.intelisis.com.ar in both DNS views, with public TCP ports 20284-20286 protected by TLS and separate Basic Auth credentials. The Cordoba S3 API and native SeaweedFS backends were then reported private; the four TIC S3 mappings remain planned and disabled. IoT now uses 138.121.100.6. Netmgr's External CNAME to lujan.intelisis.com.ar is already documented as published. LTS and groupware identities are deprecated. On October 16, the groupware.aero.com.ar Internal A record was removed; both Internal authorities now return authoritative NXDOMAIN at SOA 2026101601. Public resolvers already returned NXDOMAIN before the edit, so no External zone change was needed; External SOA remains 2026101402. Production Mailcow at 192.168.25.40 was not changed; mail.aero.com.ar continues resolving to its approved mail endpoint in both views. DNS retirement does not authorize deleting LXC 25004.
+  - Operator direction October 16: projects.intelisis.com.ar was removed from the Internal and External A records and its External PTR was removed; the updated forward and reverse zones replicated to both authorities. The Projects guest remains deprecated and powered off; router assignment and destination NAT were not changed. S3 DNS analysis is deferred until the external load balancer deployment is complete, and Pro3D DNS/delegation are owner-managed and outside this project.
+  - Operator-directed GPS identity cutover October 17: gps.intelisis.com.ar was added as Internal A 192.168.25.8 and External A 138.121.100.2. The existing gps.aero.com.ar records remain as compatibility aliases to the same endpoints; public address, NAT, and client ports did not change.
+  - "Operator-approved Development private-use SSH cutover October 17: TIC RouterOS forwards TCP 20153 on 138.121.101.15 and 10.8.0.61 to 192.168.27.15:22. Internal and External A records point to those respective TIC addresses; both views used serial 2026101702 and were verified on both authorities. An initial October 17 public-resolver check found stale Google data (138.121.101.8, TTL 14704) while Cloudflare returned 138.121.101.15; a follow-up at 18:41 UTC returned 138.121.101.15 through Cloudflare, Google, and Quad9, resolving the discrepancy across those samples. The old address remains unavailable for reuse until provider allocation is confirmed. No legacy TCP 20022 rule was present on TIC. There is no separate external firewall appliance: the term refers to CORE RouterOS /ip firewall filter. The exact forward accept has no source-address restriction; although approved during cutover, this conflicts with the private-use restricted-audience requirement. Internal connectivity was tested, but no public-source end-to-end test was performed."
+  - "October 17 split-view DNS verification: Internal SOA serials on ns1 and ns2 are intelisis.com.ar 2026101704, aero.com.ar 2026101601, and polodesalud.com.ar 2026101104. Cloudflare and Google return External SOA serials intelisis.com.ar 2026101708, aero.com.ar 2026101402, and polodesalud.com.ar 2026101501; these External values are recorded in zone_serials. Both public resolvers return matching zone-apex NS answers and MX answers for all three zones. An initial check found different Development A answers; a follow-up at 18:41 UTC through Cloudflare, Google, and Quad9 returned 138.121.101.15 for development.intelisis.com.ar from all three, with the same External SOA serial 2026101708. Public reverse-zone SOA answers match the recorded serials. Direct requests from the Internal audit host to public DNS IPs select the Internal split view and are not evidence of External zone contents."
+  - "October 17 TSIG-authenticated AXFR inventory: the External zones contain 23 A records and 19 CNAME records, matching the declared totals. All 23 A records and all 19 CNAMEs returned the registered target through Cloudflare, Google, and Quad9. The public-address ledger had only 22 A identities; db1.intelisis.com.ar -> 138.121.101.15 was the missing identity and is now included under that shared TIC address. The Internal view contains 59 A and 27 CNAME records across the same three zones, including six PVE/PBS/PDM aliases and two legacy pilot-mail aliases absent from External."
+  - "October 17 live CORE RouterOS audit: Cordoba has five logical enabled high-port mappings 20282-20286 on both 45.238.8.15 and 10.8.0.51 to 192.168.24.28, including API HTTPS 20282 to 443, SSH 20283 to 22, and GUI TCP 20284-20286 to 9443-9445. The initial forward filter accepted dstnat traffic to TCP 443 and 9443-9445 without source-address matches before the generic TCP drop; its TCP 22 accept followed that drop and was shadowed. After the operator confirmed no source restrictions for now, an enabled unrestricted TCP 22 accept was inserted before the drop and the old shadowed rule was disabled. This supersedes the October 15 statement that the API remained private at router ingress; application-level reachability and authentication were not tested from a public source."
+  - "October 17 19:44 UTC live CORE RouterOS forward-filter review and approved remediation: the operator directed no source restrictions for now. TIC's existing Development TCP 20153 accept remains unrestricted. Lujan now accepts destination-NAT TCP 20073 to 192.168.25.7:8922 before its TCP drop. TIC now accepts destination-NAT TCP 20502/20503 to Mantis 192.168.27.50 ports 443/22, 20202/20203 to Gestion 192.168.27.20 ports 443/22, and 20253/20254 to Database 192.168.27.25 ports 22/5432 before its TCP drop. The CRM-to-Mantis hairpin rule remains unchanged. Read-back confirms the exact destination/port accepts are enabled before the catch-all drops with no source-address restrictions. NAT and DNS were not changed; no public-source end-to-end or service-authentication tests were performed. These source-unrestricted rules are temporary operator-directed behavior and do not by themselves establish compliance with the private-audience policy."
 
 planned_address_reassignments:
   - service: gps
-    fqdn: gps.aero.com.ar
+    fqdn: gps.intelisis.com.ar
     current_public_address: 138.121.100.2
     target_public_address: 138.121.100.2
     status: ssh_high_port_and_ingestion_operator_confirmed
     planned_ports: [tcp/80, tcp/443, tcp/5005, tcp/5027, tcp/5055, tcp/5056, tcp/5144, tcp/8082, tcp/20083]
     blockers:
-      - Internal authoritative DNS resolves gps.aero.com.ar to 192.168.25.8, and public resolvers return 138.121.100.2; the four CORE-router address, route, and Lujan NAT state were verified on October 15.
+      - Internal DNS resolves gps.intelisis.com.ar and gps.aero.com.ar to 192.168.25.8; public DNS resolves both names to 138.121.100.2. Both Intelisis zone views now use serial 2026101701 on both authorities.
       - On October 16, key-based SSH succeeded at 138.121.100.2:20083 -> 192.168.25.8:22 after adding the dedicated environment key to the GPS guest.
       - The operator authorized removal of the unused TCP 8080 mapping on October 16. It is no longer forwarded; the other eight public client ports remain unchanged.
       - The operator confirms GPS protocol-level ingestion is already validated; no synthetic telemetry was sent and no address change is proposed.
@@ -444,7 +453,7 @@ planned_address_reassignments:
       - Public TCP 80 maps to Node-RED guest port 1880. The effective orchestrator.firmware_base_url is http://iot.intelisis.com.ar/endpoint/firmware, and a capped public firmware GET returned HTTP 200. Node-RED v22.1.0 runs with ssl=false and HTTP-node Basic Auth disabled; endpoint-specific authentication remains enabled.
       - Public HTTPS 443 and MQTT TLS 8883 present the renewed production certificate issued October 15, 2026, expiring January 13, 2027. The local Home Assistant app local_iot_certbot_dns is started in production mode with boot mode auto. On October 16, the operator approved a forced production renewal. The app completed DNS-01/RFC2136 issuance, deployed the certificate to /ssl, and successfully requested Home Assistant and Mosquitto restarts. The deployed and served HTTPS/MQTT certificate fingerprints match, hostname and chain checks pass, and HTTPS returns HTTP 200. The External intelisis.com.ar SOA serial is 2026101522 on primary and secondary; public resolvers show no leftover challenge TXT. Keep core_letsencrypt stopped on HTTP-01.
       - PM_ADMIN_TOKEN, PM_DEVICE_SECRET, and PM_TRACCAR_INGEST_TOKEN are present in the protected runtime secrets file; unauthenticated device-command, admin, and heartbeat probes returned HTTP 401. The heartbeat helper's missing-token bypass is fixed and deployed; the configured static-auth password was rotated and the secrets file is owner-only.
-      - On October 16, 2026, the dedicated IoT-admin public key authenticated through both the former .100.6:8922 path and the new .100.6:20073 -> .25.7:8922 high-port path. The external firewall owner confirmed the TCP 20073 source policy and the NAT rule is active. Both DNS views remain unchanged and use iot.intelisis.com.ar; the public 8922 SSH forward was removed after acceptance while MQTT on 8883 remained enabled. RouterOS source filtering is not planned.
+      - On October 16, 2026, the dedicated IoT-admin public key authenticated through both the former .100.6:8922 path and the new .100.6:20073 -> .25.7:8922 high-port path. The operator confirmed the TCP 20073 source policy in the CORE RouterOS /ip firewall filter and the NAT rule is active. Both DNS views remain unchanged and use iot.intelisis.com.ar; the public 8922 SSH forward was removed after acceptance while MQTT on 8883 remained enabled.
   - service: prestoprenda
     fqdn: web.prestoprenda.com.ar
     current_public_address: 138.121.101.2

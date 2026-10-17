@@ -28,8 +28,9 @@ resolves to TIC in both views, with its client forwarding active on TIC and no
 Mantis forwarding found on Lujan. October 16 checks from this workstation
 reached its HTTPS login redirect and SSH banner; a subsequent authenticated
 web login reached the dashboard with TLS verification enabled. No issue or
-customer records were read or changed. The operator confirms all ingress
-access control is enforced by the external firewall. The completed
+customer records were read or changed. The operator confirms ingress access
+control is enforced by the CORE routers' RouterOS `/ip firewall filter`
+rules; there is no separate external firewall appliance. The completed
 and pending work is documented in
 [`config/tic_workload_dns_cutover_plan.yaml`](config/tic_workload_dns_cutover_plan.yaml).
 Database service lifecycle and PostgreSQL migration planning are owned by
@@ -49,7 +50,12 @@ SOA `2026101601`. Public resolvers already returned NXDOMAIN, so the External
 zone was left unchanged. The production Mailcow identity
 `mail.aero.com.ar` still resolves to the approved mail service in both views;
 the guest at `192.168.25.40` was not changed.
-The active database identity remains `db1.intelisis.com.ar`. The old
+The currently published production database identity remains
+`db1.intelisis.com.ar`; on October 17, the operator selected future names
+`db-tic.intelisis.com.ar` for existing TIC VM 27025 and
+`db-cor.intelisis.com.ar` for existing Córdoba VM 24025. These names have not
+been published or applied to guest hostnames. DNS, certificate, database-role,
+and application-client transitions are pending a sequenced plan. The old
 `138.121.101.4` assignment and its dynamic `/32` route have now been removed
 from all four CORE routers; no old `5432` NAT mapping remains. PMS records were
 removed from both DNS views and its External PTR was deleted. PBX now has only
@@ -88,6 +94,24 @@ no public Ollama address, route, or NAT is configured. Prestoprenda remains
 customer-DNS-owned; the operator confirmed its external path is already
 verified, so no Internal record or local DNS cutover is pending.
 
+On October 16, the operator directed retirement of
+`projects.intelisis.com.ar` from all managed DNS views. Its Internal and
+External A records and External PTR were removed and the updated zones
+replicated to both authorities. The Projects guest remains deprecated and
+powered off; its router assignment and broad destination NAT were not changed
+by this DNS-scoped action. Do not republish the name or treat the address as
+available.
+
+S3 DNS analysis and any cutover are deferred until the currently ongoing load
+balancer deployment is complete. That deployment is external to this project’s
+scope; retain the current S3 DNS state until a later, separately scoped review.
+
+The read-only reconciliation of the workload high-port scheme, DNS answers,
+live NAT rules, and six CORE router management services is documented in
+[`doc/HIGH_PORTS_RECONCILIATION_2026-10-16.md`](doc/HIGH_PORTS_RECONCILIATION_2026-10-16.md).
+It distinguishes active mappings from registry plans and records the
+outstanding DNS, allocation-policy, and router-service discrepancies.
+
 ## Architecture & Topology
 
 | Role | Container | Site | IP Address | Host Node |
@@ -101,11 +125,10 @@ Ten zones are replicated across two distinct views:
 - **Internal View**: `intelisis.com.ar`, `aero.com.ar`, `polodesalud.com.ar`
 - **External View**: The same three forward zones plus reverse zones `100.121.138.in-addr.arpa`, `101.121.138.in-addr.arpa`, `102.121.138.in-addr.arpa`, `103.121.138.in-addr.arpa`.
 
-`pro3d.com.ar` was retired from both BIND views on October 13, 2026, by
-operator approval. Its parent delegation remains pointed at Spaceship, whose
-nameservers were returning `REFUSED` during the retirement. The domain will
-remain publicly unavailable until its authoritative zone is correctly served
-there; internal pro3d mail and groupware DNS records were also removed.
+`pro3d.com.ar` was retired from both BIND views on October 13, 2026. The domain,
+its parent delegation, and any future DNS or mail service are now managed by
+its owner and are outside this project's scope. No further action on Pro3D is
+pending from DNS_ENVIRONMENT.
 
 ## Tooling & Inspection
 

@@ -25,14 +25,92 @@ class ReconciliationValidationTests(unittest.TestCase):
     def test_repository_reconciliation_is_valid(self) -> None:
         counts = validate_reconciliation(self.doc)
         self.assertEqual(counts["services"], 20)
-        self.assertEqual(counts["forward_addresses"], 14)
+        self.assertEqual(counts["forward_addresses"], 12)
         self.assertEqual(counts["dedicated_exception"], 13)
-        self.assertEqual(counts["migration_candidate"], 1)
-        self.assertEqual(counts["owner_decision_required"], 1)
+        self.assertEqual(counts.get("migration_candidate", 0), 0)
+        self.assertEqual(counts.get("owner_decision_required", 0), 0)
         self.assertEqual(counts.get("preserve_pending_dedicated_cutover", 0), 0)
         self.assertEqual(counts["active_shared_endpoint"], 2)
         self.assertEqual(counts["retirement_pending"], 2)
-        self.assertEqual(counts["retired"], 1)
+        self.assertEqual(counts["retired"], 3)
+
+    def test_development_cutover_retires_old_external_endpoint(self) -> None:
+        reconciliation = self.doc["reconciliation"]
+        old_endpoint = next(
+            service
+            for service in reconciliation["services"]
+            if service["public_address"] == "138.121.101.8"
+        )
+        tic_endpoint = next(
+            service
+            for service in reconciliation["services"]
+            if service["public_address"] == "138.121.101.15"
+        )
+
+        self.assertEqual(old_endpoint["dns_a_names"], [])
+        self.assertEqual(old_endpoint["disposition"], "retired")
+        self.assertFalse(old_endpoint["migration_eligible"])
+        self.assertIn("development.intelisis.com.ar", tic_endpoint["dns_a_names"])
+        self.assertGreater(
+            reconciliation["zone_serials"]["intelisis.com.ar"],
+            2026101702,
+        )
+        self.assertTrue(
+            any(
+                "both views used serial 2026101702" in finding
+                for finding in reconciliation["additional_findings"]
+            )
+        )
+        self.assertTrue(
+            any(
+                "initial October 17 public-resolver check found stale Google data"
+                in finding
+                and "Cloudflare returned 138.121.101.15" in finding
+                for finding in reconciliation["additional_findings"]
+            )
+        )
+        self.assertTrue(
+            any(
+                "follow-up at 18:41 UTC returned 138.121.101.15 through Cloudflare, Google, and Quad9"
+                in finding
+                for finding in reconciliation["additional_findings"]
+            )
+        )
+
+    def test_public_a_inventory_includes_database_alias_on_tic_address(self) -> None:
+        reconciliation = self.doc["reconciliation"]
+        tic_endpoint = next(
+            service
+            for service in reconciliation["services"]
+            if service["public_address"] == "138.121.101.15"
+        )
+
+        self.assertIn("db1.intelisis.com.ar", tic_endpoint["dns_a_names"])
+        self.assertEqual(
+            sum(len(service["dns_a_names"]) for service in reconciliation["services"]),
+            reconciliation["metadata"]["counts"]["forward_a_records"],
+        )
+
+    def test_live_filter_remediation_is_recorded_as_unrestricted_temporary_state(
+        self,
+    ) -> None:
+        findings = self.doc["reconciliation"]["additional_findings"]
+
+        self.assertTrue(
+            any(
+                "Lujan now accepts destination-NAT TCP 20073" in finding
+                and "TIC now accepts destination-NAT TCP 20502/20503" in finding
+                and "no source-address restrictions" in finding
+                for finding in findings
+            )
+        )
+        self.assertTrue(
+            any(
+                "TCP 22 accept was inserted before the drop" in finding
+                and "old shadowed rule was disabled" in finding
+                for finding in findings
+            )
+        )
 
     def test_all_public_addresses_have_valid_access_classification(self) -> None:
         services = self.doc["reconciliation"]["services"]
@@ -170,7 +248,7 @@ class ReconciliationValidationTests(unittest.TestCase):
         )
         self.assertTrue(
             any(
-                "external firewall owner confirmed the TCP 20073 source policy"
+                "operator confirmed the TCP 20073 source policy in the CORE RouterOS /ip firewall filter"
                 in blocker
                 for blocker in iot["blockers"]
             )
