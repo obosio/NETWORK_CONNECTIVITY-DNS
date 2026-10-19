@@ -34,7 +34,7 @@ rules; there is no separate external firewall appliance. The completed
 and pending work is documented in
 [`config/tic_workload_dns_cutover_plan.yaml`](config/tic_workload_dns_cutover_plan.yaml).
 Database service lifecycle and PostgreSQL migration planning are owned by
-[DB_ENVIRONMENT](../DB_ENVIRONMENT/README.md); this project retains ownership
+[DB_ENVIRONMENT](../../SERVICES/DB/README.md); this project retains ownership
 of the DNS records, DNS/TLS cutover state, and authoritative verification.
 The shared Aero and Intelisis apexes now match their approved split-view
 targets and were verified on both authorities. Lujan TCP `80,443` forwarding
@@ -182,7 +182,7 @@ select the Internal view according to BIND's client ACLs.
 
 ## Related
 
-- `../PVE/` - Proxmox VE host infrastructure and guest provisioning
+- `../../INFRASTRUCTURE/PVE/` - Proxmox VE host infrastructure and guest provisioning
 - `../MIKROTIK-MANAGER/` - Edge router fleet configuration and destination-NAT state
-- `../WEB_ENVIRONMENT/` - Ingress reverse-proxy services mapped from DNS endpoints
-- `../MAIL_ENVIRONMENT/` - Mailcow mail gateway DNS dependencies
+- `../../SERVICES/WEB/` - Ingress reverse-proxy services mapped from DNS endpoints
+- `../../SERVICES/MAIL/` - Mailcow mail gateway DNS dependencies

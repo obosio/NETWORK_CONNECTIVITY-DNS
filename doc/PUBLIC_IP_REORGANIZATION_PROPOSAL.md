@@ -136,7 +136,7 @@ still requires assignment approval.
 ## Service audience inventory
 
 The authoritative ingress and NAT rules are consolidated in PVE's
-[Service Ingress and NAT Port Policy](../../PVE/doc/SERVICE_INGRESS_AND_NAT_POLICY.md).
+[Service Ingress and NAT Port Policy](../../../INFRASTRUCTURE/PVE/doc/SERVICE_INGRESS_AND_NAT_POLICY.md).
 This section records service-level audience classifications and observed or
 proposed endpoints; it is not a server-wide classification or a separate port
 policy. A single server can host public-use and private-use services at the

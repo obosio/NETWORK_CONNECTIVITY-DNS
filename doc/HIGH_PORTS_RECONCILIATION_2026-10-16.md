@@ -20,13 +20,13 @@ is no separate external firewall appliance or control plane.
   recursive resolver `1.1.1.1`. Results below describe these observations, not
   guaranteed future state.
 - The credential-free router-owned endpoint registry:
-  [public_nat_registry.yaml](../../MIKROTIK-MANAGER/config/public_nat_registry.yaml)
+  [public_nat_registry.yaml](../../MIKROTIK_MANAGER/config/public_nat_registry.yaml)
 - The separate TIC workload NAT plan:
-  [tic_workload_migration_nat_plan.yaml](../../MIKROTIK-MANAGER/config/tic_workload_migration_nat_plan.yaml)
+  [tic_workload_migration_nat_plan.yaml](../../MIKROTIK_MANAGER/config/tic_workload_migration_nat_plan.yaml)
 - The DNS-owned reconciliation ledger:
   [external_dns_reconciliation.yaml](../config/external_dns_reconciliation.yaml)
 - DNS administration forwarding details:
-  [DNS_PRIMARY_SECONDARY.md](../../PVE/doc/DNS_PRIMARY_SECONDARY.md)
+  [DNS_PRIMARY_SECONDARY.md](../../../INFRASTRUCTURE/PVE/doc/DNS_PRIMARY_SECONDARY.md)
 
 The registry is a plan and accounting source, not a DNS zone and not a live
 router export. “Active” below means observed in enabled live destination-NAT
@@ -40,7 +40,7 @@ example `https://web.intelisis.com.ar:20602` or
 This table records the allocator and observed router-management scheme used
 for this October 16 read-only reconciliation. The authoritative service
 classification and ingress-port policy is now consolidated in
-[PVE's Service Ingress and NAT Port Policy](../../PVE/doc/SERVICE_INGRESS_AND_NAT_POLICY.md).
+[PVE's Service Ingress and NAT Port Policy](../../../INFRASTRUCTURE/PVE/doc/SERVICE_INGRESS_AND_NAT_POLICY.md).
 The endpoint inventory below remains evidence of observed assignments, not
 authorization to change or renumber them.
 

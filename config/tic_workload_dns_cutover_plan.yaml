@@ -787,7 +787,7 @@ services:
               crm_application_tables: 151
               crm_application_tables_with_pk: 126
               target_in_scope_crm_tables: 139
-              exact_live_table_name_manifest: ../../DB_ENVIRONMENT/doc/POSTGRESQL_UUID_TABLE_SCOPE_CANDIDATE_2026-10-15.txt
+              exact_live_table_name_manifest: ../../../SERVICES/DB/doc/POSTGRESQL_UUID_TABLE_SCOPE_CANDIDATE_2026-10-15.txt
               manifest_entry_count: 139
               manifest_status: candidate_pending_table_by_table_semantic_review_and_replica_identity_validation
               pending: complete_table_by_table_semantic_review_and_replica_identity_eligibility_validation
