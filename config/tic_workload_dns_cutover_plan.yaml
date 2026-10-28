@@ -1,6 +1,6 @@
 metadata:
   version: 1
-  updated_at: '2026-10-17'
+  updated_at: '2026-10-20'
   status: db_tic_crm_traccar_node_red_verified_db_cor_fenced
   migration_state: db_tic_identity_staged_uuid_migration_and_replication_inactive
   live_changes_authorized: true
@@ -1039,6 +1039,37 @@ services:
         source_guest_25050: not_confirmed_removed_by_this_audit
       external_route_acceptance: client_ports_unreachable_from_development_workstation
     state: tic_target_running_cname_published_legacy_forwarding_absent_external_acceptance_unverified
+
+  network_manager:
+    canonical_fqdn: netmgr.intelisis.com.ar
+    internal:
+      action: set_a_record
+      address: 10.8.0.61
+      ttl: 300
+      route_ports:
+        https: 20302
+        ssh: 20303
+    external:
+      action: set_a_record
+      address: 138.121.101.15
+      ttl: 300
+      route_ports:
+        https: 20302
+        ssh: 20303
+    target:
+      type: qemu
+      vmid: 27030
+      node: pve-02-tic
+      guest_fqdn: netmgr.intelisis.com.ar
+      guest_address: 192.168.27.30
+      nginx_https_listener: 443
+      ssh_listener: 22
+      state: deleted_2026_10_20
+    publication:
+      state: dns_and_router_nat_retained_after_target_deletion
+      certificate_lineage: certbot_dns01_local_deployment_renewal_verified_valid_until_2027_01_18
+      source_policy: temporary_https_public_and_ssh_unrestricted_public_key_auth_only
+    state: vm_deleted_dns_nat_unchanged_pending_operator_decision
 
 policy:
   routeros_source_address_restrictions: none

@@ -6,6 +6,37 @@ Firewall terminology: references in this document to an “external firewall”
 mean the `/ip firewall filter` section on the applicable CORE RouterOS router.
 There is no separate external firewall appliance.
 
+## OCC DNS unification (October 20, 2026)
+
+The operator approved `occ.intelisis.com.ar` resolving to public address
+`138.121.102.15` in both views, retaining existing HTTPS port `21202` and
+SSH port `21203`. This OCC-specific exception permits standard Chatwoot
+webhooks through unmodified SafeFetch without enabling global private-network
+requests. It does not change the Intelisis private-use audience classification
+or any other service's DNS policy.
+
+The Internal A record on primary CT 25100 changed from `10.8.0.11` to
+`138.121.102.15`, TTL 300, with SOA serial `2026102001`. `named-checkzone`
+passed before activation; secondary CT 26100 replicated the same serial
+and address. The original static Internal zone is backed up on the primary
+at `/var/lib/bind/intelisis.com.ar.Internal.hosts.pre-occ-public-20261020`.
+The already-correct External record and its dynamic zone were not modified;
+public resolver verification still returns `138.121.102.15`.
+
+On OCC CT 26120, the exact private hosts override was removed and
+`/etc/.pve-ignore.hosts` prevents Proxmox from regenerating it. Guest hostname
+and interface address remain unchanged. Guest recursive DNS was changed to
+`192.168.26.100`, then `192.168.25.100`, in both the running resolver file
+and persistent Proxmox configuration after checking public and internal
+dependency resolution. The former guest resolvers returned NXDOMAIN
+(`192.168.20.11`) or a stale old address (`192.168.20.21`); those shared
+resolvers were not altered. Other clients may retain stale/negative answers.
+
+OCC's normal DNS-based HTTPS login returned HTTP 200 with valid TLS, and
+an actual Rails SafeFetch request succeeded without private-network bypass.
+No NAT, firewall, new DNS hostname, or TLS certificate changes were required.
+Signed bot delivery remains a separate acceptance step.
+
 ## Operator-directed status (October 17, 2026)
 
 - GPS now uses `gps.intelisis.com.ar` as its canonical DNS and guest hostname.

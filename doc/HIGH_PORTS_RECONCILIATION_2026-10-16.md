@@ -285,3 +285,23 @@ their dedicated public addresses for high-port SSH, while their Internal DNS
 answers point directly to the workloads. Database and several planned
 infrastructure, Development, and TIC S3 names need explicit DNS/route
 reconciliation before their high-port records can be considered usable.
+
+## October 20 update — TIC Network Manager
+
+The operator-approved hostname cutover is live. Internal DNS resolves
+`netmgr.intelisis.com.ar` to `10.8.0.61`; External DNS resolves it to
+`138.121.101.15`. TIC CORE RouterOS forwards TCP `20302` to
+`192.168.27.30:443` and TCP `20303` to `192.168.27.30:22`, on both the
+internal and public router addresses. These two logical endpoints are now
+registered as active in the public NAT registry.
+
+The previous Lujan service and its `20702`/`20703` mappings remain in place
+for rollback, but DNS no longer points to them. The TIC HTTPS endpoint serves
+a production Let's Encrypt certificate issued through DNS-01, expiring
+January 18, 2027. The SSH publication is temporarily unrestricted to Internet
+sources and requires public-key authentication. Restrict or remove that
+publication before pilot acceptance.
+
+This update adds four known live TIC destination-NAT rules. The aggregate
+high-port totals in the October 16 report are historical and require a fresh
+all-router audit before being treated as current.

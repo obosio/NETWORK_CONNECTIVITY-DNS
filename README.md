@@ -1,6 +1,6 @@
 # DNS_ENVIRONMENT
 
-Updated: Oct 16, 2026
+Updated: Oct 23, 2026
 
 **DNS infrastructure, authoritative zone reconciliation, and operational audit platform** for the primary and secondary BIND DNS services, zone replication, and split-view publication across all network and cluster boundaries.
 
@@ -20,6 +20,22 @@ This project exists to deliver managed authoritative and recursive DNS infrastru
 - Reconcile authoritative forward and reverse records against live edge router address and destination-NAT state.
 - Inspect and monitor live zone serial synchronization, TSIG authenticated replication, and query consistency across views.
 - Provide a clean migration path and approval boundaries for public IP reorganization and DNS cutovers.
+
+On October 22, 2026, four exact-scope External RFC2136 grants were provisioned
+for NETWORK_MANAGER router certificate challenges. The identities are limited
+to TXT updates at their respective `_acme-challenge` owners. Subsequent
+staging issuance for all four profiles cleaned up the temporary challenge
+records; the primary and secondary External zone serials match at
+`2026101748`. See the
+[router grant operation record](doc/NETWORK_MANAGER_ROUTER_DNS_GRANTS_2026-10-22.md).
+
+On October 23, 2026, an operator-approved External grant was provisioned for
+the WEB proxy certificate challenge. Its dedicated identity is limited to TXT
+at `_acme-challenge.web-proxy.intelisis.com.ar.`. The temporary exact-owner
+TXT test was removed, sibling-owner TXT was refused, and primary/secondary
+serials match at `2026102211`. The key remains on the DNS primary; no WEB
+credential handoff or certificate issuance has occurred. See the
+[WEB proxy grant operation record](doc/WEB_PROXY_DNS_GRANT_2026-10-23.md).
 
 The Database DNS/TLS cutover and Mantis TIC CNAME cutover are live and
 reconciled with the current service state. Database internal-client acceptance
