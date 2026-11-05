@@ -16,7 +16,7 @@ metadata:
     unresolved: Audience, ownership, activity, or endpoint is not sufficiently verified; do not migrate or activate.
     retired: Retired address or service; do not republish without approval.
   counts:
-    forward_a_records: 24
+    forward_a_records: 25
     unique_forward_addresses: 12
     cname_records: 19
     mx_records: 3
@@ -25,7 +25,7 @@ metadata:
 
 zone_serials:
   aero.com.ar: 2026101402
-  intelisis.com.ar: 2026102201
+  intelisis.com.ar: 2026110302
   polodesalud.com.ar: 2026101501
   100.121.138.in-addr.arpa: 1503626322
   101.121.138.in-addr.arpa: 2026101501
@@ -269,10 +269,11 @@ services:
       - tic.intelisis.com.ar
       - development.intelisis.com.ar
       - db1.intelisis.com.ar
+      - s3-tic.intelisis.com.ar
     ptr_name: null
     observed_site: tic
     router_assignment: CORE-ROUTER-TIC loopback
-    nat_summary: Public router identity; Development TCP 20153 forwards to 192.168.27.15:22, with the internal router identity 10.8.0.61:20153; other destination-NAT services are managed separately
+    nat_summary: Public router identity; S3 TIC TCP 20282-20286 forwards to 192.168.27.28 ports 443, 22, 9443, 9444, 9445 on public and internal router addresses. Other services require their current owner ledger; historical Development TIC forwarding is superseded by its Centro migration.
     role: edge_router_public_identity
     access_class: mixed_service_identity
     high_port_migration_eligible: false
@@ -347,10 +348,11 @@ services:
     dns_a_names:
       - cordoba.intelisis.com.ar
       - media-relay.intelisis.com.ar
+      - appear.intelisis.com.ar
     ptr_name: null
     observed_site: cordoba
     router_assignment: CORE-ROUTER-CORDOBA loopback
-    nat_summary: Public router identity; destination-NAT includes media-relay.intelisis.com.ar high-port HTTPS/SSH publication on TCP 21102/21103 to 192.168.15.110
+    nat_summary: Public router identity; destination-NAT includes media-relay.intelisis.com.ar high-port HTTPS/SSH publication on TCP 21102/21103 to 192.168.15.110 and appear.intelisis.com.ar HTTP TCP 21051 to 192.168.15.105:80
     role: edge_router_public_identity
     access_class: network_identity
     high_port_migration_eligible: false
@@ -398,6 +400,7 @@ aliases:
       backup_directory: /root/dns-cleanup-20261014T1722Z
 
 additional_findings:
+  - "November 3 owner-approved TIC S3 publication and 15:09 UTC correction: External s3-tic A 138.121.101.15 TTL 300, serial 2026110301 verified via Cloudflare/Google. Internal s3-tic now resolves to router 10.8.0.61 TTL 300, Internal serial 2026110301 verified on both authorities; s3 remains its Internal-only CNAME. Ten paired NAT rules on 10.8.0.61/138.121.101.15 map TCP 20282-20286 to guest 443/22/9443/9444/9445; five forward accepts allow temporarily unrestricted sources by explicit approval. One owner-approved native compatibility NAT forwards TCP 22,443,9443-9446 unchanged only on internal router 10.8.0.61, with an additional review-UI forward accept before the TLS-host drop. Normal-DNS high-port GUI authentication returned 200; native HTTPS/SSH compatibility passed, and a fresh Cordoba replication SSH tunnel retained pinned host-key verification and returned Filer HEAD 200 without restarting production services. No public review/native-port NAT was added. Public client-path acceptance remains open after earlier timeouts including unrelated TIC services. Writer/mirror roles and replication configuration were not changed."
   - Operator-approved Media Concentrator publication October 22, 2026: media-relay.intelisis.com.ar now resolves to Internal A 10.8.0.51 and External A 45.238.8.15. CORE-ROUTER-CORDOBA now forwards TCP 21102 to 192.168.15.110:8080 and TCP 21103 to 192.168.15.110:22 on both the public and internal router addresses, using connection-mark-scoped forward accept rules and guard drops so direct 8080/22 forwarding remains blocked unless reached through the approved high ports. HTTPS on 21102 presents the production Let's Encrypt certificate for media-relay.intelisis.com.ar, and SSH on 21103 is key-only with password authentication disabled.
   - Verified October 14 on both authorities. aero.com.ar and intelisis.com.ar are apex A records, 10.8.0.21 in Internal and 138.121.100.4 in External; www.aero.com.ar and public.aero.com.ar are CNAMEs to aero.com.ar; lujan.intelisis.com.ar remains 10.8.0.21 Internal and 138.121.100.15 External.
   - Lujan TCP 80/443 NAT for public 138.121.100.4 and internal 10.8.0.21 forwards to running TIC Gestion CT 27020 at 192.168.27.20. No NAT rules were changed during the DNS correction.
@@ -435,6 +438,10 @@ additional_findings:
   - "Read-only refresh October 19: all four External reverse-zone serials matched on primary and secondary. All six declared External PTR records matched on Cloudflare, Google, and Quad9. dig +trace confirmed .com.ar parent delegation for aero.com.ar, intelisis.com.ar, and polodesalud.com.ar to their corresponding ns1/ns2 names, with glue addresses 138.121.100.1 and 138.121.102.1. The trace's final child-zone queries followed this workstation's split DNS path; they do not establish direct external authoritative reachability. DNSSEC/DS validation and direct external authoritative reachability remain open."
   - "Operator-approved Network Manager TIC cutover October 20: netmgr.intelisis.com.ar now has Internal A 10.8.0.61 and External A 138.121.101.15. TIC CORE RouterOS forwards TCP 20302 to 192.168.27.30:443 and TCP 20303 to :22 on both the public and internal router addresses. The External A and HTTPS health endpoint were verified through public DNS/ingress. The production Let's Encrypt DNS-01 request, staging dry run, and renewal dry run all succeeded; the certificate expires January 18, 2027. Certbot's renewal timer and an nginx deploy hook are configured. The ACME account has no contact email, so configure expiry monitoring or a contact before pilot acceptance. TCP 20303 is temporarily unrestricted and uses public-key SSH authentication. Lujan's old 20702/20703 mappings remain as rollback paths; the hostname no longer targets Lujan."
   - "Operator-directed Network Manager retirement October 20, 2026: TIC VM 27030 (192.168.27.30) was stopped and deleted from pve-02-tic. DNS and RouterOS NAT/forward publications were intentionally left unchanged; netmgr.intelisis.com.ar and ports 20302/20303 still reference the deleted target and require a separate operator decision before reuse or cleanup. The PBS backup remains available but no restore was tested."
+
+  - "November 5 APPEAR HTTP publication: the operator corrected the initial direct Internal A to CORE high-port ingress, then approved HTTP after native HTTPS remained unverified. appear.intelisis.com.ar now has Internal A 10.8.0.51 and External A 45.238.8.15, TTL 300. CORE-ROUTER-CORDOBA translates TCP 21051 on both addresses to 192.168.15.105:80 with connection-mark-restricted forwarding and an unmarked-dstnat guard, without source-address restrictions. No SSH or Maintenance Center publication was added. Both authorities loaded Internal serial 2026110504 and External serial 2026110302; public resolvers returned the External target. Authenticated native UI GETs passed from the development host via the hostname and public router address, not an independent Internet-source test. HTTP remains an explicit legacy exception without transport encryption. The separate missing gateway PTR and APPEAR DNS warning are unchanged."
+
+  - "November 5 gateway PTR correction: the operator approved Internal-only reverse zone 15.168.192.in-addr.arpa, serial 2026110501, with 192.168.15.1 PTR cordoba.intelisis.com.ar and TTL 300. Both BIND authorities returned the PTR; TSIG-authenticated secondary transfer succeeded at 05:23:39 UTC. Existing forward and External zone files were unchanged. The CORE router retained NXDOMAIN for almost 24 hours; exact-entry removal was unsupported. A separately authorized single full DNS cache flush completed at 05:26:47 UTC, after which the gateway returned the correct PTR. APPEAR warning 4653071 cleared automatically by 05:27:18 UTC and remained absent through the final 05:28:48 UTC observation. No device setting, NAT, A record, manual alarm state or service restart was involved."
 
 planned_address_reassignments:
   - service: gps

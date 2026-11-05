@@ -1,10 +1,80 @@
 # External DNS service reconciliation
 
-Updated: October 17, 2026
+Updated: November 3, 2026
 
 Firewall terminology: references in this document to an “external firewall”
 mean the `/ip firewall filter` section on the applicable CORE RouterOS router.
 There is no separate external firewall appliance.
+
+## TIC S3 publication (November 3, 2026)
+
+The operator approved External A `s3-tic.intelisis.com.ar` ->
+`138.121.101.15`, TTL 300. External `intelisis.com.ar` serial `2026110301`
+was verified on primary CT 25100 and secondary CT 26100; Cloudflare and
+Google public resolvers returned the new address. The primary's pre-change
+zone backup is
+`/var/lib/bind/intelisis.com.ar.External.hosts.pre-s3-tic-20261103`.
+The dynamic zone was frozen, backed up, checked with `named-checkzone`,
+then thawed; no TSIG/update-policy changes were made.
+
+**Internal correction, 15:09 UTC:** the owner required the same high-port
+hostname access as COR. Internal `s3-tic` now resolves to the TIC router,
+`10.8.0.61`, TTL 300, rather than directly to guest `192.168.27.28`.
+Both Internal authorities loaded serial `2026110301`. The Internal-only
+`s3.intelisis.com.ar` CNAME still points to `s3-tic`; it remains absent
+externally. This supersedes the earlier decision to retain direct Internal
+DNS, which prevented normal `s3-tic:20284` access.
+
+TIC CORE now has ten paired internal/public destination-NAT rules on
+`10.8.0.61` and `138.121.101.15`: `20282 -> 443`, `20283 -> 22`,
+`20284 -> 9443`, `20285 -> 9444`, and `20286 -> 9445`, all targeting
+`192.168.27.28`. Five forward accepts precede the TLS-host drop. Source
+addresses are temporarily unrestricted by explicit approval; application
+authentication and guest key-only SSH were retained. No HTTP or public
+review-UI NAT was added.
+
+The owner separately approved native-port compatibility only on the
+internal router address. One additional destination-NAT rule preserves
+ports `22,443,9443-9446` on `10.8.0.61`, forwarding unchanged ports to
+`192.168.27.28`. A forward accept for destination-NAT TCP 9446 precedes
+the TLS-host drop; other native ports reuse the existing S3 accepts.
+There is no equivalent native-port rule on `138.121.101.15`. This preserves
+native clients, both Internal hostnames, the existing review URL and the
+Cordoba replication tunnel without guest/service changes.
+
+All three high-port GUI roots returned authenticated HTTP `200` with the
+project-local credentials, trusted TLS and normal Internal DNS. API `20282`
+returned anonymous `403`; high-port SSH returned the guest banner. All five
+native HTTPS listeners passed trusted TLS through the internal router
+(API `403`, GUIs/review `401`). A new SSH tunnel from Cordoba using unchanged
+replication credentials and pinned host keys resolved `s3-tic` to `10.8.0.61`
+and returned Filer HEAD `200`. The temporary probe was stopped; production
+replication, its tunnel and SeaweedFS retained their PIDs and zero restarts.
+
+All four internal-router HTTPS paths returned expected anonymous API `403`
+or GUI `401` with validated TLS; TCP 20283 returned the SSH banner.
+Public-address connections from the Centro development workstation timed
+out, as did existing Mantis and Network Manager public ports on the same
+TIC address. Public end-to-end acceptance remains unverified; this change
+did not modify unrelated routing to work around that source/path issue.
+
+Router rollback exports: `before-s3-tic-publication-20261103.rsc` and
+`before-s3-tic-internal-dns-20261103.rsc`, retained on TIC only.
+Publication rules are tagged `S3 TIC publication 2026-11-03`; the two new
+compatibility rules are tagged `S3 TIC internal compatibility 2026-11-03`
+(NAT `*31`, filter `*35`, separate rule namespaces).
+The static Internal zone backup is
+`/var/lib/bind/intelisis.com.ar.Internal.hosts.pre-s3-tic-router-20261103`;
+the corrected zone passed `named-checkzone` before `rndc reload`.
+
+To roll back the Internal correction, restore only the `s3-tic` Internal
+A to `192.168.27.28` under a newer serial, validate/reload and verify both
+authorities, then allow cached TTLs to expire before disabling the two
+compatibility rules. A publication-only rollback disables the paired
+high-port NAT rules and removes the External A under a newer serial;
+retain shared forward accepts while native compatibility uses them.
+Preserve the Internal-only alias, replication and writer/mirror roles.
+Do not restore an entire historical zone/router export over later changes.
 
 ## OCC DNS unification (October 20, 2026)
 

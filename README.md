@@ -196,6 +196,101 @@ output. For External-view checks from an RFC1918 source, use the scoped
 External TSIG identity without printing its secret; unsigned requests may
 select the Internal view according to BIND's client ACLs.
 
+## APPEAR Internal record (November 5, 2026)
+
+The operator initially requested publishing `appear.intelisis.com.ar` in the system BIND
+DNS. Its initial Internal-only A record was `192.168.15.105`, TTL 300. Primary CT 25100
+on `pve-upr-3-luj` loaded serial `2026110503` at `04:49:13 UTC`; secondary
+CT 26100 on `pve-upr-3-cen` loaded the same serial automatically. Both servers
+returned authoritative answers, and gateway resolver `192.168.15.1` returned
+the same address. No External record or PTR was created.
+
+The first reload failed because the existing static Internal zone file was
+`root:root`, mode `0600`, unreadable by BIND. Its on-disk contents were rolled
+back with a forward-only serial before retrying. The successful candidate
+uses `root:bind`, mode `0640`. Zone and full configuration validation passed;
+the External zone and `named.conf.local` hashes were unchanged. Protected
+pre-change backups remain on the primary under
+`/root/appear-dns-prechange-20261105T044814Z` and
+`/root/appear-dns-prechange-20261105T044913Z`. No service restart was performed.
+Secondary `zonestatus` and authoritative responses verify replication;
+the targeted syslog check returned no transfer lines.
+
+The operator corrected that direct-to-device publication to the existing CORE
+high-port NAT scheme, then approved HTTP after native HTTPS remained unverified.
+The installed endpoint is **http://appear.intelisis.com.ar:21051**:
+
+| View | A record | CORE translation |
+| --- | --- | --- |
+| Internal | `10.8.0.51` | TCP 21051 to `192.168.15.105:80` |
+| External | `45.238.8.15` | TCP 21051 to `192.168.15.105:80` |
+
+Both use TTL 300. At `05:10:40 UTC`, Internal serial `2026110504` and
+External serial `2026110302` loaded on both BIND authorities. The dynamic
+External zone was frozen only for the edit, validated and thawed; final
+primary readback confirmed it unfrozen. The protected pre-change backup is
+`/root/appear-core-dns-prechange-20261105T051040Z` on CT 25100.
+`named.conf.local` was unchanged. Both Internal authoritative answers and
+External answers through Cloudflare and Google matched the intended router
+addresses.
+
+CORE-ROUTER-CORDOBA has paired TCP 21051 destination-NAT and connection-mark
+rules, a mark-restricted forward accept and an unmarked-dstnat guard. Existing
+rules were preserved. The operator-approved legacy HTTP exception has no
+source-address restriction; Digest authentication does not encrypt traffic.
+SSH, HTTPS and Maintenance Center have no new publication. Authenticated native
+configuration GETs succeeded through the hostname and public router address
+from the development host; independent Internet-source acceptance was not run.
+The assignment is recorded in the
+[router endpoint registry](../MIKROTIK_MANAGER/config/public_nat_registry.yaml).
+
+These forward records did not resolve APPEAR's reverse-lookup failure for
+DNS gateway `192.168.15.1`. The subsequently approved PTR correction and
+remaining resolver-cache blocker are described below. See the
+[HEADEND DNS investigation](../../STREAMING/HEADEND/equipment/migration/reports/administrative_endpoints.md).
+
+## Cordoba gateway Internal PTR (November 5, 2026)
+
+The operator approved `192.168.15.1 PTR cordoba.intelisis.com.ar.` without a
+new hostname or A-record change. The new Internal-only reverse zone
+`15.168.192.in-addr.arpa` has serial `2026110501`, record/default/negative TTL
+300, and the existing primary/secondary NS identities. It becomes authoritative
+for this Internal /24; no other PTR owners were added.
+
+Primary CT 25100 loaded the zone at `05:23:35 UTC`; secondary CT 26100 loaded
+it at `05:23:39 UTC`. Both returned authoritative PTR answers. Existing
+`dns-internal-transfer` TSIG, explicit notification and source-address
+conventions were reused; secondary logs confirm a successful authenticated
+transfer. The first notification preceded secondary configuration and returned
+NOTAUTH; the subsequent transfer succeeded. Zone and full configuration checks
+passed, and all pre-existing forward/reverse zone files retained their hashes.
+Only the Internal reverse-zone declarations and the new zone data were added;
+External DNS, existing A records and CORE NAT were unchanged. BIND was
+reconfigured, not restarted.
+
+Protected pre-change configurations remain on primary CT 25100 at
+`/root/appear-gateway-ptr-prechange-20261105T052335Z` and secondary CT 26100 at
+`/root/appear-gateway-ptr-prechange-20261105T052338Z`. Rollback removes only
+the new Internal zone declaration and its dedicated file on each server,
+validates the configuration and runs `rndc reconfig`; existing forward zones
+need no serial change because no A record was changed.
+
+The CORE resolver continued returning its cached NXDOMAIN. RouterOS
+`/ip/dns/cache/all` showed the exact probe owner
+`1.15.168.192.in-addr.arpa` with approximately 23 hours 49 minutes remaining.
+The operator authorized exact-entry invalidation only; the attempted
+`/ip/dns/cache/all/remove` returned `no such command`. No whole-cache flush,
+static override, resolver change or restart was attempted. At that point APPEAR warning resolution remained blocked on the stale cache.
+
+The operator subsequently authorized one full DNS cache flush on
+CORE-ROUTER-CORDOBA. It completed at `05:26:47 UTC`; the gateway immediately
+returned the correct PTR with `NOERROR`. The first APPEAR observation still
+showed warning 4653071, but it was absent at `05:27:18 UTC` and at all three
+subsequent observations through `05:28:48 UTC`. The warning cleared
+automatically, with no manual alarm acknowledgement, device change or service
+restart. This closes the observed DNS warning within the approved two-minute
+verification window; ongoing recurrence monitoring remains appropriate.
+
 ## Related
 
 - `../../INFRASTRUCTURE/PVE/` - Proxmox VE host infrastructure and guest provisioning
