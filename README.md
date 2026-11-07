@@ -15,6 +15,19 @@ This project exists to deliver managed authoritative and recursive DNS infrastru
 
 ## Scope
 
+On November 7, 2026, the existing Network Manager TIC CT `27030` migrated to
+`netmgr-tic.intelisis.com.ar` (Internal A `10.8.0.61`, TTL `300`). Its HTTPS
+and SSH use internal high ports `20302` and `20303`; the new name is absent
+from the External view. The generic `netmgr.intelisis.com.ar` was removed
+from both views and authoritative NXDOMAIN verified on both servers.
+The primary/secondary serials match: Internal `2026110704`, External
+`2026110701`. Only the exact External TXT grant for
+`_acme-challenge.netmgr-tic.intelisis.com.ar.` remains for the existing
+`network-manager-web-acme` identity. Production TLS issuance and renewal
+dry run passed; see the [application deployment record](../NETWORK_MANAGER/doc/LXC_DEPLOYMENT.md).
+Use site-qualified `netmgr-<site>` identities for instances, not a shared
+generic hostname. No other site's instance or DNS name was provisioned.
+
 - Maintain primary and secondary authoritative BIND 9 services across sites (`ns1.intelisis.com.ar` on CT 25100, `ns2.intelisis.com.ar` on CT 26100).
 - Manage split-view policy (Internal view for RFC1918 and internal networks; External view for public authoritative domains).
 - Reconcile authoritative forward and reverse records against live edge router address and destination-NAT state.
